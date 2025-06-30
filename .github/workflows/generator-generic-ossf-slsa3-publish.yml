@@ -15,7 +15,7 @@ jobs:
     permissions:
       actions: read
       id-token: write
-      contents: write  # Needed to upload provenance to release
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -29,18 +29,19 @@ jobs:
       - name: Build with Maven
         run: mvn clean package -DskipTests
 
-      - name: Generate artifact hashes
+      - name: Generate base64-encoded artifact subjects
         id: hash
         run: |
-          ARTIFACTS=$(find target -type f -name "*.jar" -or -name "*.zip")
+          ARTIFACTS=$(find target -type f \( -name "*.jar" -or -name "*.zip" \))
           SUBJECTS=""
           for file in $ARTIFACTS; do
             HASH=$(sha256sum "$file" | cut -d ' ' -f 1)
             BASENAME=$(basename "$file")
             SUBJECTS="$SUBJECTS{\"name\":\"$BASENAME\",\"digest\":{\"sha256\":\"$HASH\"}},"
           done
-          SUBJECTS="[${SUBJECTS%,}]"
-          echo "subjects=$SUBJECTS" >> $GITHUB_OUTPUT
+          JSON="[${SUBJECTS%,}]"
+          echo "$JSON" | base64 -w0 > subjects.b64
+          echo "subjects=$(cat subjects.b64)" >> $GITHUB_OUTPUT
 
       - name: Generate SLSA Provenance
         uses: slsa-framework/slsa-github-generator@v1
