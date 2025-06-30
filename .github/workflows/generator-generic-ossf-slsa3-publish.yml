@@ -1,54 +1,9 @@
-name: SLSA3 Provenance Publish
-
-on:
-  release:
-    types: [created]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-  id-token: write
-
-jobs:
-  slsa-build:
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Build with Maven
-        run: mvn clean package -DskipTests
-
-      - name: Generate base64-encoded artifact subjects
-        id: hash
-        run: |
-          ARTIFACTS=$(find target -type f \( -name "*.jar" -or -name "*.zip" \))
-          SUBJECTS=""
-          for file in $ARTIFACTS; do
-            HASH=$(sha256sum "$file" | cut -d ' ' -f 1)
-            BASENAME=$(basename "$file")
-            SUBJECTS="$SUBJECTS{\"name\":\"$BASENAME\",\"digest\":{\"sha256\":\"$HASH\"}},"
-          done
-          JSON="[${SUBJECTS%,}]"
-          echo "$JSON" | base64 -w0 > subjects.b64
-          echo "subjects=$(cat subjects.b64)" >> $GITHUB_OUTPUT
-
-      - name: Generate SLSA Provenance
-        uses: slsa-framework/slsa-github-generator@v1
-        with:
-          base64-subjects: ${{ steps.hash.outputs.subjects }}
-
+      # ... previous steps ...
       - name: Upload Provenance to Release
         uses: softprops/action-gh-release@v2
         with:
           files: "*.intoto.jsonl"
+      - name: Upload Birthday Card HTML to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Happy_Birthday_index.html
