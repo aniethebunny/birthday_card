@@ -1,3 +1,53 @@
-       - name: Setup Java JDK
-  uses: actions/setup-java@v3.14.1
-  with:
+name: SLSA3 Provenance Publish
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  slsa-build:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      id-token: write
+      contents: write  # Needed to upload provenance to release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      - name: Generate artifact hashes
+        id: hash
+        run: |
+          ARTIFACTS=$(find target -type f -name "*.jar" -or -name "*.zip")
+          SUBJECTS=""
+          for file in $ARTIFACTS; do
+            HASH=$(sha256sum "$file" | cut -d ' ' -f 1)
+            BASENAME=$(basename "$file")
+            SUBJECTS="$SUBJECTS{\"name\":\"$BASENAME\",\"digest\":{\"sha256\":\"$HASH\"}},"
+          done
+          SUBJECTS="[${SUBJECTS%,}]"
+          echo "subjects=$SUBJECTS" >> $GITHUB_OUTPUT
+
+      - name: Generate SLSA Provenance
+        uses: slsa-framework/slsa-github-generator@v1
+        with:
+          base64-subjects: ${{ steps.hash.outputs.subjects }}
+
+      - name: Upload Provenance to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.intoto.jsonl"
