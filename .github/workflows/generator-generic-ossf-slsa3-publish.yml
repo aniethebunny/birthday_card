@@ -1,12 +1,73 @@
-      - name: Create ZIP of Project Files
-        run: |
-          zip -r birthday_card_v${{ github.ref_name }}.zip Happy_Birthday_index.html
+name: 'Attest Build Provenance'
+description: 'Generate SLSA provenance attestations for build artifacts'
+author: 'GitHub'
+branding:
+  color: 'blue'
+  icon: 'lock'
 
-      - name: Upload Assets to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            *.intoto.jsonl
-            Happy_Birthday_index.html
-            birthday_card_v${{ github.ref_name }}.zip
-            assets/screenshot.png  # Optional, if you add images
+inputs:
+  subject-path:
+    description: >
+      Path to the artifact to attest. Use one of "subject-path", "subject-digest", or
+      "subject-checksums". Can be a glob pattern or list (limit: 1024).
+    required: false
+
+  subject-digest:
+    description: >
+      Digest of the subject in "algorithm:hex" format, e.g., "sha256:abc123...".
+      Required if using digest mode.
+    required: false
+
+  subject-name:
+    description: >
+      Display name in the attestation. Required when using "subject-digest".
+    required: false
+
+  subject-checksums:
+    description: >
+      Path to a checksums file (e.g., from `sha256sum`) with file names and digests.
+    required: false
+
+  push-to-registry:
+    description: >
+      Set to "true" to push the attestation to an image registry.
+      Requires fully-qualified "subject-name" and "subject-digest".
+    required: false
+    default: false
+
+  show-summary:
+    description: >
+      Display attestation list in the GitHub workflow summary.
+    required: false
+    default: true
+
+  github-token:
+    description: >
+      GitHub token for API authentication.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  bundle-path:
+    description: 'File path of the attestation bundle.'
+    value: ${{ steps.attest.outputs.bundle-path }}
+
+  attestation-id:
+    description: 'Unique ID for the attestation.'
+    value: ${{ steps.attest.outputs.attestation-id }}
+
+  attestation-url:
+    description: 'Summary URL of the attestation.'
+    value: ${{ steps.attest.outputs.attestation-url }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: generate-build-provenance-predicate
+      uses: actions/attest-build-provenance/predicate@1176ef556905f349f669722abf30bce1a6e16e01
+
+    - id: attest
+      uses: actions/attest@ce27ba3b4a9a139d9a20a4a07d69fabb52f1e5bc
+      with:
+        subject-path: ${{ inputs.subject-path }}
+        subject-digest: ${{ inputs.subject-diges
