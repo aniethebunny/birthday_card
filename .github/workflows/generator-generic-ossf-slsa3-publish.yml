@@ -1,9 +1,12 @@
-      # ... previous steps ...
-      - name: Upload Provenance to Release
+      - name: Create ZIP of Project Files
+        run: |
+          zip -r birthday_card_v${{ github.ref_name }}.zip Happy_Birthday_index.html
+
+      - name: Upload Assets to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.intoto.jsonl"
-      - name: Upload Birthday Card HTML to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: Happy_Birthday_index.html
+          files: |
+            *.intoto.jsonl
+            Happy_Birthday_index.html
+            birthday_card_v${{ github.ref_name }}.zip
+            assets/screenshot.png  # Optional, if you add images
